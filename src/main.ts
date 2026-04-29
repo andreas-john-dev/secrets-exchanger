@@ -3,6 +3,7 @@ import { AwsSolutionsChecks } from "cdk-nag";
 import { ENVIRONMENT_PROPERTIES, Stage } from "./constants";
 import { ApiStack } from "./stacks/apiStack";
 import { CertificateStack } from "./stacks/certificateStack";
+import { GitHubOidcStack } from "./stacks/githubOidcStack";
 import { StatefulStack } from "./stacks/statefulStack";
 import { WebsiteStack } from "./stacks/websiteStack";
 
@@ -43,5 +44,11 @@ new ApiStack(app, `api-${stage}`, {
   ],
 });
 Aspects.of(app).add(new AwsSolutionsChecks({ verbose: true }));
+
+const githubRepo = process.env.GITHUB_REPO ?? "andreas-john-dev/secrets-exchanger";
+new GitHubOidcStack(app, `github-oidc-${stage}`, {
+  env: envProps.env,
+  githubRepo,
+});
 
 app.synth();

@@ -1,0 +1,68 @@
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: "Deployment stage"
+        required: true
+        default: "dev"
+        type: choice
+        options:
+          - dev
+          - prod
+
+concurrency:
+  group: deploy-${{ github.ref }}-${{ inputs.stage || 'dev' }}
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    name: CDK deploy
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.stage || 'dev' }}
+    env:
+      CDK_STAGE: ${{ inputs.stage || 'dev' }}
+      CDK_DEV_ACCOUNT: ${{ vars.CDK_DEV_ACCOUNT }}
+      CDK_DEV_REGION: ${{ vars.CDK_DEV_REGION }}
+      CDK_PROD_ACCOUNT: ${{ vars.CDK_PROD_ACCOUNT }}
+      CDK_PROD_REGION: ${{ vars.CDK_PROD_REGION }}
+      WEBSITE_DOMAIN_NAME: ${{ vars.WEBSITE_DOMAIN_NAME }}
+      HOSTED_ZONE_NAME: ${{ vars.HOSTED_ZONE_NAME }}
+      API_URL: ${{ vars.API_URL }}
+      GITHUB_REPO: ${{ github.repository }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          role-session-name: github-actions-secrets-exchanger
+          aws-region: ${{ vars.CDK_DEV_REGION || 'eu-central-1' }}
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Install Angular app dependencies
+        working-directory: src/stacks/website/secrets-exchanger-web-app
+        run: npm ci
+
+      - name: Build & test
+        run: npx projen build
+
+      - name: CDK deploy
+        run: npx cdk deploy --all --require-approval never
