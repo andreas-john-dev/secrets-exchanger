@@ -41,6 +41,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Verify required variables
+        run: |
+          missing=0
+          if [ -z "${{ vars.AWS_DEPLOY_ROLE_ARN }}" ]; then
+            echo "::error::AWS_DEPLOY_ROLE_ARN is not set. Add it as a variable in the '${{ inputs.stage || 'dev' }}' environment (Settings → Environments → ${{ inputs.stage || 'dev' }} → Variables)."
+            missing=1
+          fi
+          if [ -z "${{ vars.CDK_DEV_ACCOUNT }}${{ vars.CDK_PROD_ACCOUNT }}" ]; then
+            echo "::error::CDK_DEV_ACCOUNT (or CDK_PROD_ACCOUNT) is not set."
+            missing=1
+          fi
+          exit $missing
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
