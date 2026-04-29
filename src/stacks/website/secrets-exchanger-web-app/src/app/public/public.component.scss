@@ -1,0 +1,9 @@
+@use '@angular/material' as mat;
+
+:host {
+  display: block;
+}
+.active {
+  background: var(--mat-sys-primary-container)!important;
+  color: var(--mat-sys-on-primary-container)!important;
+}

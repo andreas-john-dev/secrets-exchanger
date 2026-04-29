@@ -1,0 +1,50 @@
+/* You can add global styles to this file, and also import other style files */
+@use '@angular/material' as mat;
+
+// Customize the entire app. Change :root to your selector if you want to scope the styles.
+// :root {
+//   @include mat.snack-bar-overrides((
+//     container-color: #ac0c03,
+//     supporting-text-color: white,
+//   ));
+// }
+
+
+html {
+  color-scheme: light dark;
+  @include mat.theme((
+    color: mat.$spring-green-palette,
+    typography: Roboto,
+    density: 0
+  ));
+}
+body { 
+    background: var(--mat-sys-surface);
+    color: var(--mat-sys-on-surface);
+  }
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body { height: 100%; }
+body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
+.mat-mdc-snack-bar-container {
+    --mat-mdc-snack-bar-button-color: #ffffff;
+    --mat-snackbar-supporting-text-color: #ffffff;
+
+    &.app-notification-error {
+      --mat-snackbar-container-color: #ac0c03;
+    }
+  
+    &.app-notification-info {
+      --mat-snackbar-container-color:#0074e9;
+    }
+  }
+
+.mat-mdc-outlined-button,
+.mat-mdc-raised-button,
+.mat-mdc-unelevated-button,
+.mat-mdc-flat-button {
+  border-radius: 0 !important;
+}
