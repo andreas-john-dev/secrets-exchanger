@@ -16,6 +16,7 @@ export interface ApiStackProps extends StackProps {
 }
 
 export class ApiStack extends Stack {
+  readonly apiUrl: string;
   constructor(scope: Construct, id: string, props: ApiStackProps) {
     super(scope, id, { ...props, stackName: PROJECT_NAME + "-Api" });
     const exchangeLogic = new SecretsExchangeLogic(
@@ -23,10 +24,11 @@ export class ApiStack extends Stack {
       "secrets-exchange-logic",
       { secretsTable: props.secretsTable, kmsKey: props.kmsKey },
     );
-    new SecretsExchangerApi(this, "secrets-exchanger-api", {
+    const api = new SecretsExchangerApi(this, "secrets-exchanger-api", {
       allowOrigins: props.allowOrigins,
       storeEncryptedSecret: exchangeLogic.storeEncryptedSecret,
       readSecretFunction: exchangeLogic.readSecretFunction,
     });
+    this.apiUrl = api.apiUrl;
   }
 }

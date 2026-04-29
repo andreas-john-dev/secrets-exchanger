@@ -9,6 +9,7 @@ interface SecretsExchangerApiProps {
   allowOrigins: string[];
 }
 export class SecretsExchangerApi extends Construct {
+  readonly apiUrl: string;
   constructor(scope: Construct, id: string, props: SecretsExchangerApiProps) {
     super(scope, id);
     const restApi = new apigw.RestApi(this, "rest-api", {
@@ -19,6 +20,7 @@ export class SecretsExchangerApi extends Construct {
       },
       restApiName: `${PROJECT_NAME}-Api`,
     });
+    this.apiUrl = restApi.url;
     restApi.addRequestValidator("validate-request", {
       validateRequestBody: true,
       validateRequestParameters: true,

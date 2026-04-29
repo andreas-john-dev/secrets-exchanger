@@ -44,9 +44,6 @@
                   "with": "src/environments/environment.prod.ts"
                 }
               ],
-              "define": {
-                "__API_URL__": "\"\""
-              },
               "budgets": [
                 {
                   "type": "initial",

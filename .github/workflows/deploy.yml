@@ -35,7 +35,6 @@ jobs:
       CDK_PROD_REGION: ${{ vars.CDK_PROD_REGION }}
       WEBSITE_DOMAIN_NAME: ${{ vars.WEBSITE_DOMAIN_NAME }}
       HOSTED_ZONE_NAME: ${{ vars.HOSTED_ZONE_NAME }}
-      API_URL: ${{ vars.API_URL }}
       GITHUB_REPO: ${{ github.repository }}
     steps:
       - name: Checkout

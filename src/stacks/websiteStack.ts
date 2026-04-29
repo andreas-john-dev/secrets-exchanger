@@ -7,6 +7,7 @@ import { PROJECT_NAME } from "../constants";
 import { AngularWebApp } from "./website/angular-web-app.construct";
 
 export interface WebsiteStackProps extends StackProps {
+  readonly apiUrl: string;
   readonly customDomain?: {
     readonly domainName: string;
     readonly certificate: ICertificate;
@@ -28,6 +29,7 @@ export class WebsiteStack extends Stack {
       buildConfiguration: "production",
       relativeAngularPath: "./src/stacks/website/secrets-exchanger-web-app",
       customDomain: props.customDomain,
+      apiUrl: props.apiUrl,
     });
     this.websiteDomainName = webApp.domainName;
 

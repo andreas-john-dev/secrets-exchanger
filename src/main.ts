@@ -22,8 +22,22 @@ const certStack = new CertificateStack(app, `website-cert-${stage}`, {
   hostedZoneName,
 });
 
+const statefulStack = new StatefulStack(app, `stateful-${stage}`, {
+  env: envProps.env,
+});
+const apiStack = new ApiStack(app, `api-${stage}`, {
+  env: envProps.env,
+  secretsTable: statefulStack.secretsTable,
+  kmsKey: statefulStack.kmsKey,
+  allowOrigins: [
+    `https://${websiteDomainName}`,
+    "http://localhost:4200",
+  ],
+});
+
 const websiteStack = new WebsiteStack(app, `website-${stage}`, {
   env: envProps.env,
+  apiUrl: apiStack.apiUrl,
   customDomain: {
     domainName: websiteDomainName,
     certificate: certStack.certificate,
@@ -31,18 +45,7 @@ const websiteStack = new WebsiteStack(app, `website-${stage}`, {
   },
 });
 websiteStack.addDependency(certStack);
-const statefulStack = new StatefulStack(app, `stateful-${stage}`, {
-  env: envProps.env,
-});
-new ApiStack(app, `api-${stage}`, {
-  env: envProps.env,
-  secretsTable: statefulStack.secretsTable,
-  kmsKey: statefulStack.kmsKey,
-  allowOrigins: [
-    "https://" + websiteStack.websiteDomainName,
-    "http://localhost:4200",
-  ],
-});
+websiteStack.addDependency(apiStack);
 Aspects.of(app).add(new AwsSolutionsChecks({ verbose: true }));
 
 const githubRepo = process.env.GITHUB_REPO || "andreas-john-dev/secrets-exchanger";

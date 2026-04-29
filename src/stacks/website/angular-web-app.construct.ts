@@ -30,10 +30,10 @@ interface AngularWebAppProps {
   readonly projectName: string;
 
   /**
-   * The API Gateway base URL to inject into the Angular build.
-   * Falls back to the API_URL environment variable if not provided.
+   * The API Gateway base URL to inject into the Angular runtime via /config.json.
+   * May be a CDK token (resolved at deploy-time).
    */
-  readonly apiUrl?: string;
+  readonly apiUrl: string;
 
   /**
    * Optional custom domain configuration.
@@ -168,7 +168,6 @@ export class AngularWebApp extends Construct {
     webAppBucket: s3.IBucket,
     webDistribution: cloudfront.Distribution,
   ) {
-    const apiUrl = props.apiUrl ?? process.env.API_URL ?? '';
     new s3Deployment.BucketDeployment(this, "AngularWebAppDeployment", {
       destinationBucket: webAppBucket,
       sources: [
@@ -189,7 +188,7 @@ export class AngularWebApp extends Construct {
                   [
                     `cd ${props.relativeAngularPath}`,
                     "npm ci",
-                    `npm run build -- -c ${props.buildConfiguration} --define '__API_URL__="${apiUrl}"'`,
+                    `npm run build -- -c ${props.buildConfiguration}`,
                     `cp -r ./dist/${props.projectName}/browser/* ${outputDir}`,
                   ].join(" && "),
                   {
@@ -201,6 +200,9 @@ export class AngularWebApp extends Construct {
               },
             },
           },
+        }),
+        s3Deployment.Source.jsonData("config.json", {
+          apiUrl: props.apiUrl,
         }),
       ],
       distribution: webDistribution,
