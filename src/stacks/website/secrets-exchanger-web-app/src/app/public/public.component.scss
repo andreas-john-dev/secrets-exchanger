@@ -1,9 +1,9 @@
-@use '@angular/material' as mat;
-
 :host {
   display: block;
 }
-.active {
-  background: var(--mat-sys-primary-container)!important;
-  color: var(--mat-sys-on-primary-container)!important;
+
+// Active nav button gets a subtle highlight to indicate the current section
+.nav-active {
+  background: rgba(56, 189, 248, 0.16) !important;
+  color: #7dd3fc !important;
 }

@@ -1,82 +1,109 @@
-import { ChangeDetectionStrategy, Component, inject } from "@angular/core";
-import { MatFormFieldModule } from "@angular/material/form-field";
+import { Clipboard } from "@angular/cdk/clipboard";
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from "@angular/core";
 import {
-  FormBuilder,
+  FormControl,
   FormGroup,
   ReactiveFormsModule,
   Validators,
 } from "@angular/forms";
-import { AsyncPipe, NgIf } from "@angular/common";
-import { MatButton, MatIconButton } from "@angular/material/button";
+import { MatButtonModule } from "@angular/material/button";
+import { MatFormFieldModule } from "@angular/material/form-field";
+import { MatIconModule } from "@angular/material/icon";
 import { MatInputModule } from "@angular/material/input";
-import { SecretsService } from "../secrets.service";
-import { BehaviorSubject, Subject } from "rxjs";
-import { RouterModule } from "@angular/router";
-import { Clipboard } from "@angular/cdk/clipboard";
+import { MatProgressSpinnerModule } from "@angular/material/progress-spinner";
 import { MatSnackBar } from "@angular/material/snack-bar";
-import { MatIcon } from "@angular/material/icon";
+import { MatTooltipModule } from "@angular/material/tooltip";
+import { RouterModule } from "@angular/router";
+import { finalize } from "rxjs/operators";
+import { SecretsService } from "../secrets.service";
+
+const MAX_SECRET_LENGTH = 4096;
+
+interface CreateSecretForm {
+  message: FormControl<string>;
+  passphrase: FormControl<string>;
+}
 
 @Component({
   selector: "app-create-secret",
   imports: [
-    MatFormFieldModule,
     ReactiveFormsModule,
-    NgIf,
-    MatButton,
+    RouterModule,
+    MatFormFieldModule,
     MatInputModule,
-    AsyncPipe,
-    RouterModule,MatIconButton, MatIcon
+    MatButtonModule,
+    MatIconModule,
+    MatProgressSpinnerModule,
+    MatTooltipModule,
   ],
   templateUrl: "./create-secret.component.html",
   styleUrl: "./create-secret.component.scss",
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CreateSecretComponent {
-  form: FormGroup;
-  encryptedInput$ = new BehaviorSubject<string>("");
-  private _snackBar = inject(MatSnackBar);
+  private readonly secretsService = inject(SecretsService);
+  private readonly clipboard = inject(Clipboard);
+  private readonly snackBar = inject(MatSnackBar);
 
-  constructor(
-    private fb: FormBuilder,
-    private secretsService: SecretsService,
-    private clipboard: Clipboard,
-  ) {
-    this.form = this.fb.group({
-      message: ["", [Validators.required, Validators.maxLength(4096)]],
-      password: [""], // Optional field
+  protected readonly maxLength = MAX_SECRET_LENGTH;
+  protected readonly form: FormGroup<CreateSecretForm> = new FormGroup<CreateSecretForm>({
+    message: new FormControl("", {
+      nonNullable: true,
+      validators: [Validators.required, Validators.maxLength(MAX_SECRET_LENGTH)],
+    }),
+    passphrase: new FormControl("", { nonNullable: true }),
+  });
+
+  protected readonly submitting = signal(false);
+  protected readonly encrypted = signal<string | null>(null);
+  protected readonly showPassphrase = signal(false);
+
+  protected readonly secretUrl = computed(() => {
+    const value = this.encrypted();
+    if (!value) return "";
+    return `${window.location.origin}/public/read-secret?encryptedInput=${encodeURIComponent(value)}`;
+  });
+
+  protected onSubmit(): void {
+    if (this.form.invalid || this.submitting()) return;
+
+    const { message, passphrase } = this.form.getRawValue();
+    this.submitting.set(true);
+
+    this.secretsService
+      .encrypt(message, passphrase || undefined)
+      .pipe(finalize(() => this.submitting.set(false)))
+      .subscribe({
+        next: ({ encryptedResponse }) => {
+          this.encrypted.set(encryptedResponse);
+          this.copyLinkToClipboard();
+        },
+        error: () => {
+          this.snackBar.open(
+            "Something went wrong while encrypting. Please try again.",
+            "Dismiss",
+            { duration: 5000, panelClass: "app-notification-error" },
+          );
+        },
+      });
+  }
+
+  protected copyLinkToClipboard(): void {
+    const url = this.secretUrl();
+    if (!url) return;
+    this.clipboard.copy(url);
+    this.snackBar.open("Secret link copied to clipboard", "Got it", {
+      duration: 4000,
+      panelClass: "app-notification-success",
     });
   }
 
-  get messageLength(): number {
-    return this.form.get("message")?.value?.length || 0;
+  protected reset(): void {
+    this.encrypted.set(null);
+    this.form.reset({ message: "", passphrase: "" });
   }
 
-  onSubmit() {
-    if (this.form.valid) {
-      console.log("Form Submitted", this.form.value);
-      this.secretsService
-        .encrypt(this.form.value.message, this.form.value.password)
-        .subscribe(
-          (response) => {
-            console.log("Encryption successful", response);
-            this.encryptedInput$.next(response.encryptedResponse);
-            this.copyToClipboard()
-          },
-          (error) => {
-            console.error("Encryption failed", error);
-          },
-        );
-    }
-  }
-  copyToClipboard() {
-    const secretUrl =
-      window.origin +
-      "/public/read-secret?encryptedInput=" +
-      encodeURIComponent(this.encryptedInput$.value);
-    this.clipboard.copy(secretUrl);
-    this._snackBar.open("Copied Secret Link to Clipboard", "Got it", {
-      duration: 5 * 1000,
-      panelClass: "app-notification-info",
-    });
+  protected togglePassphrase(): void {
+    this.showPassphrase.update((v) => !v);
   }
 }

@@ -38,7 +38,7 @@ exports[`Snapshot 1`] = `
                       {
                         "Ref": "AWS::Partition",
                       },
-                      ":iam::597061004312:root",
+                      ":iam::123456789012:root",
                     ],
                   ],
                 },

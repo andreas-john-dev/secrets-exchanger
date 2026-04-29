@@ -1,31 +1,29 @@
 import { HttpClient } from "@angular/common/http";
-import { Injectable } from "@angular/core";
+import { Injectable, inject } from "@angular/core";
 import { Observable } from "rxjs";
 import { environment } from "../../environments/environment";
 
-@Injectable({
-  providedIn: "root",
-})
+interface EncryptResponse {
+  encryptedResponse: string;
+}
+
+interface DecryptResponse {
+  secretString: string;
+}
+
+@Injectable({ providedIn: "root" })
 export class SecretsService {
-  constructor(private http: HttpClient) { }
-  private baseUrl = environment.apiUrl;
-  encrypt(
-    secretString: string,
-    passphrase?: string,
-  ): Observable<{ encryptedResponse: string }> {
-    const url = this.baseUrl + "/encrypt";
-    return this.http.post<{ encryptedResponse: string }>(url, {
+  private readonly http = inject(HttpClient);
+
+  encrypt(secretString: string, passphrase?: string): Observable<EncryptResponse> {
+    return this.http.post<EncryptResponse>(`${environment.apiUrl}/encrypt`, {
       secretString,
       passphrase,
     });
   }
 
-  decrypt(
-    encryptedInput: string,
-    passphrase?: string,
-  ): Observable<{ secretString: string }> {
-    const url = this.baseUrl + "/decrypt";
-    return this.http.post<{ secretString: string }>(url, {
+  decrypt(encryptedInput: string, passphrase?: string): Observable<DecryptResponse> {
+    return this.http.post<DecryptResponse>(`${environment.apiUrl}/decrypt`, {
       encryptedInput,
       passphrase,
     });

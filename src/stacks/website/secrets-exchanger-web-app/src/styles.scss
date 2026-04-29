@@ -1,50 +1,65 @@
-/* You can add global styles to this file, and also import other style files */
 @use '@angular/material' as mat;
-
-// Customize the entire app. Change :root to your selector if you want to scope the styles.
-// :root {
-//   @include mat.snack-bar-overrides((
-//     container-color: #ac0c03,
-//     supporting-text-color: white,
-//   ));
-// }
-
-
-html {
-  color-scheme: light dark;
-  @include mat.theme((
-    color: mat.$spring-green-palette,
-    typography: Roboto,
-    density: 0
-  ));
-}
-body { 
-    background: var(--mat-sys-surface);
-    color: var(--mat-sys-on-surface);
-  }
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-html, body { height: 100%; }
-body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
-.mat-mdc-snack-bar-container {
-    --mat-mdc-snack-bar-button-color: #ffffff;
-    --mat-snackbar-supporting-text-color: #ffffff;
+html {
+  color-scheme: light;
+  @include mat.theme((color: (primary: mat.$azure-palette,
+        tertiary: mat.$blue-palette,
+      ),
+      typography: Inter,
+      density: 0,
+    ));
+}
 
-    &.app-notification-error {
-      --mat-snackbar-container-color: #ac0c03;
-    }
-  
-    &.app-notification-info {
-      --mat-snackbar-container-color:#0074e9;
-    }
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: Inter, "Helvetica Neue", Arial, sans-serif;
+  background:
+    radial-gradient(circle at 20% 0%, rgba(99, 102, 241, 0.08), transparent 40%),
+    radial-gradient(circle at 80% 100%, rgba(14, 165, 233, 0.08), transparent 40%),
+    #f8fafc;
+  color: #0f172a;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code,
+pre,
+.font-mono {
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+// Branded snack bars
+.mat-mdc-snack-bar-container {
+  --mat-mdc-snack-bar-button-color: #ffffff;
+  --mat-snackbar-supporting-text-color: #ffffff;
+
+  &.app-notification-error {
+    --mat-snackbar-container-color: #b91c1c;
   }
 
+  &.app-notification-info {
+    --mat-snackbar-container-color: #0f172a;
+  }
+
+  &.app-notification-success {
+    --mat-snackbar-container-color: #047857;
+  }
+}
+
+// Squared-off buttons fit a more "serious" aesthetic
 .mat-mdc-outlined-button,
 .mat-mdc-raised-button,
 .mat-mdc-unelevated-button,
 .mat-mdc-flat-button {
-  border-radius: 0 !important;
+  border-radius: 6px !important;
+  letter-spacing: 0.02em;
 }
