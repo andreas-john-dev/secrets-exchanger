@@ -12,14 +12,14 @@ interface EnvironmentProps {
 export const ENVIRONMENT_PROPERTIES: Record<Stage, EnvironmentProps> = {
   dev: {
     env: {
-      account: process.env.CDK_DEV_ACCOUNT,
-      region: process.env.CDK_DEV_REGION ?? 'eu-central-1',
+      account: process.env.CDK_DEV_ACCOUNT || undefined,
+      region: process.env.CDK_DEV_REGION || 'eu-central-1',
     },
   },
   prod: {
     env: {
-      account: process.env.CDK_PROD_ACCOUNT,
-      region: process.env.CDK_PROD_REGION ?? 'eu-west-1',
+      account: process.env.CDK_PROD_ACCOUNT || undefined,
+      region: process.env.CDK_PROD_REGION || 'eu-west-1',
     },
   },
 };
