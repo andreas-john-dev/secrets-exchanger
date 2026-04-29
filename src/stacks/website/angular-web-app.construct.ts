@@ -126,6 +126,8 @@ export class AngularWebApp extends Construct {
         defaultBehavior: {
           origin: origins.S3BucketOrigin.withOriginAccessControl(webAppBucket),
         },
+        // Cheapest tier covering NA + EU. Skips Asia/SA/AU edges.
+        priceClass: cloudfront.PriceClass.PRICE_CLASS_100,
         geoRestriction: cloudfront.GeoRestriction.denylist("CN", "RU"),
         errorResponses: [
           {

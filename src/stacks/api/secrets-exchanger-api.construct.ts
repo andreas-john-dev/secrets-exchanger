@@ -19,6 +19,12 @@ export class SecretsExchangerApi extends Construct {
         allowHeaders: apigw.Cors.DEFAULT_HEADERS,
       },
       restApiName: `${PROJECT_NAME}-Api`,
+      // Cost & abuse protection: bound how fast clients can hit the API.
+      // Free to configure; prevents bill shock if a bot starts hammering /encrypt.
+      deployOptions: {
+        throttlingBurstLimit: 20,
+        throttlingRateLimit: 10,
+      },
     });
     this.apiUrl = restApi.url;
     restApi.addRequestValidator("validate-request", {
@@ -32,8 +38,8 @@ export class SecretsExchangerApi extends Construct {
         type: apigw.JsonSchemaType.OBJECT,
         required: ["secretString"],
         properties: {
-          secretString: { type: apigw.JsonSchemaType.STRING },
-          passphrase: { type: apigw.JsonSchemaType.STRING },
+          secretString: { type: apigw.JsonSchemaType.STRING, maxLength: 4096 },
+          passphrase: { type: apigw.JsonSchemaType.STRING, maxLength: 256 },
         },
       },
     });
@@ -44,8 +50,8 @@ export class SecretsExchangerApi extends Construct {
         type: apigw.JsonSchemaType.OBJECT,
         required: ["encryptedInput"],
         properties: {
-          encryptedInput: { type: apigw.JsonSchemaType.STRING },
-          passphrase: { type: apigw.JsonSchemaType.STRING },
+          encryptedInput: { type: apigw.JsonSchemaType.STRING, maxLength: 8192 },
+          passphrase: { type: apigw.JsonSchemaType.STRING, maxLength: 256 },
         },
       },
     });

@@ -1,4 +1,5 @@
 import {
+  Duration,
   aws_dynamodb as dynamodb,
   aws_kms as kms,
   aws_lambda as lambda,
@@ -56,6 +57,9 @@ export class SecretsExchangeLogic extends Construct {
         runtime: lambda.Runtime.NODEJS_24_X,
         architecture: lambda.Architecture.ARM_64,
         memorySize: 1024,
+        timeout: Duration.seconds(10),
+        // Hard ceiling on concurrent invocations to bound worst-case spend.
+        reservedConcurrentExecutions: 10,
         logGroup: storeEncryptedSecretLogGroup,
         entry: resolve(__dirname, "store-encrypted-secret.handler.ts"),
         environment: {
@@ -84,6 +88,8 @@ export class SecretsExchangeLogic extends Construct {
         architecture: lambda.Architecture.ARM_64,
         entry: resolve(__dirname, "read-secret.handler.ts"),
         memorySize: 1024,
+        timeout: Duration.seconds(10),
+        reservedConcurrentExecutions: 10,
         logGroup: readSecretLogGroup,
         environment: {
           KMS_KEY_ID: props.kmsKey.keyId,
