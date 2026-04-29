@@ -68,11 +68,11 @@ jobs:
           aws-region: ${{ vars.CDK_DEV_REGION || 'eu-central-1' }}
 
       - name: Install root dependencies
-        run: npm ci
+        run: npm ci --loglevel=error --no-fund --no-audit
 
       - name: Install Angular app dependencies
         working-directory: src/stacks/website/secrets-exchanger-web-app
-        run: npm ci
+        run: npm ci --loglevel=error --no-fund --no-audit
 
       - name: Build & test
         run: npx projen build

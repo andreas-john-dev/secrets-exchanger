@@ -17,7 +17,7 @@ const project = new awscdk.AwsCdkTypeScriptApp({
       },
     },
   },
-  gitignore: [".DS_Store"],
+  gitignore: [".DS_Store", "cdk.context.json"],
   tsconfig: {
     exclude: ["src/stacks/website/secrets-exchanger-web-app"],
   },
