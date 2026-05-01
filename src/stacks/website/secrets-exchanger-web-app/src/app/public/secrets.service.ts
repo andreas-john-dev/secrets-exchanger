@@ -3,29 +3,29 @@ import { Injectable, inject } from "@angular/core";
 import { Observable } from "rxjs";
 import { environment } from "../../environments/environment";
 
-interface EncryptResponse {
+interface StoreSecretResponse {
   encryptedResponse: string;
 }
 
-interface DecryptResponse {
-  secretString: string;
+interface RetrieveSecretResponse {
+  encryptedData: string;
 }
 
 @Injectable({ providedIn: "root" })
 export class SecretsService {
   private readonly http = inject(HttpClient);
 
-  encrypt(secretString: string, passphrase?: string): Observable<EncryptResponse> {
-    return this.http.post<EncryptResponse>(`${environment.apiUrl}/encrypt`, {
-      secretString,
-      passphrase,
+  /** Stores a browser-encrypted ciphertext blob; returns the KMS-wrapped token. */
+  storeSecret(encryptedData: string): Observable<StoreSecretResponse> {
+    return this.http.post<StoreSecretResponse>(`${environment.apiUrl}/encrypt`, {
+      encryptedData,
     });
   }
 
-  decrypt(encryptedInput: string, passphrase?: string): Observable<DecryptResponse> {
-    return this.http.post<DecryptResponse>(`${environment.apiUrl}/decrypt`, {
+  /** Retrieves and burns the stored ciphertext blob by KMS token. */
+  retrieveSecret(encryptedInput: string): Observable<RetrieveSecretResponse> {
+    return this.http.post<RetrieveSecretResponse>(`${environment.apiUrl}/decrypt`, {
       encryptedInput,
-      passphrase,
     });
   }
 }

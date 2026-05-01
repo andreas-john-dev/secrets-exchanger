@@ -4,8 +4,7 @@ import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } fro
 import {
   FormControl,
   FormGroup,
-  ReactiveFormsModule,
-  Validators,
+  ReactiveFormsModule
 } from "@angular/forms";
 import { MatButtonModule } from "@angular/material/button";
 import { MatFormFieldModule } from "@angular/material/form-field";
@@ -16,12 +15,10 @@ import { MatSnackBar } from "@angular/material/snack-bar";
 import { MatTooltipModule } from "@angular/material/tooltip";
 import { RouterModule } from "@angular/router";
 import { finalize } from "rxjs/operators";
+import { ClientEncryptionService } from "../client-encryption.service";
 import { SecretsService } from "../secrets.service";
 
-const MAX_INPUT_LENGTH = 4096;
-
 interface ReadSecretForm {
-  encryptedInput: FormControl<string>;
   passphrase: FormControl<string>;
 }
 
@@ -43,44 +40,75 @@ interface ReadSecretForm {
 })
 export class ReadSecretComponent implements OnInit {
   private readonly secretsService = inject(SecretsService);
+  private readonly clientEnc = inject(ClientEncryptionService);
   private readonly clipboard = inject(Clipboard);
   private readonly snackBar = inject(MatSnackBar);
 
   readonly encryptedInput = input<string>();
 
-  protected readonly maxLength = MAX_INPUT_LENGTH;
   protected readonly form: FormGroup<ReadSecretForm> = new FormGroup<ReadSecretForm>({
-    encryptedInput: new FormControl("", {
-      nonNullable: true,
-      validators: [Validators.required, Validators.maxLength(MAX_INPUT_LENGTH)],
-    }),
     passphrase: new FormControl("", { nonNullable: true }),
   });
 
   protected readonly submitting = signal(false);
   protected readonly decrypted = signal<string | null>(null);
   protected readonly showPassphrase = signal(false);
+  /** True when the URL is missing the `#key=` fragment — link is incomplete. */
+  protected readonly keyMissing = signal(false);
+
+  private encryptedToken = "";
+  private fragmentKey = "";
 
   ngOnInit(): void {
-    const fromUrl = this.encryptedInput();
-    if (fromUrl) {
-      this.form.controls.encryptedInput.setValue(fromUrl);
+    this.encryptedToken = this.encryptedInput() ?? "";
+
+    // The key lives only in the URL fragment — it is never sent to the server.
+    const hash = window.location.hash; // e.g. "#key=<base64>"
+    const match = hash.match(/[#&]key=([^&]*)/);
+    if (match) {
+      try {
+        this.fragmentKey = decodeURIComponent(match[1]);
+      } catch {
+        this.fragmentKey = "";
+      }
     }
+
+    this.keyMissing.set(!this.fragmentKey || !this.encryptedToken);
   }
 
   protected onSubmit(): void {
-    if (this.form.invalid || this.submitting()) return;
+    if (this.form.invalid || this.submitting() || this.keyMissing()) return;
 
-    const { encryptedInput, passphrase } = this.form.getRawValue();
+    const { passphrase } = this.form.getRawValue();
     this.submitting.set(true);
     this.decrypted.set(null);
 
     this.secretsService
-      .decrypt(encryptedInput, passphrase || undefined)
+      .retrieveSecret(this.encryptedToken)
       .pipe(finalize(() => this.submitting.set(false)))
       .subscribe({
-        next: ({ secretString }) => {
-          this.decrypted.set(secretString);
+        next: async ({ encryptedData }) => {
+          try {
+            const plaintext = await this.clientEnc.decryptSecret(encryptedData, this.fragmentKey);
+            const parsed: { secretString: string; passphrase?: string } = JSON.parse(plaintext);
+
+            if ((parsed.passphrase ?? "") !== (passphrase ?? "")) {
+              this.snackBar.open(
+                "Wrong passphrase. The secret has been destroyed and cannot be recovered.",
+                "Dismiss",
+                { duration: 8000, panelClass: "app-notification-error" },
+              );
+              return;
+            }
+
+            this.decrypted.set(parsed.secretString);
+          } catch {
+            this.snackBar.open(
+              "Decryption failed. The link may be corrupt or the key is wrong.",
+              "Dismiss",
+              { duration: 6000, panelClass: "app-notification-error" },
+            );
+          }
         },
         error: (error: HttpErrorResponse) => this.handleError(error),
       });
@@ -105,8 +133,8 @@ export class ReadSecretComponent implements OnInit {
       error.status === 404
         ? "This secret is no longer available. It may have already been read or expired."
         : error.status === 400
-          ? "Decryption failed. Please verify the passphrase and try again."
-          : "Something went wrong while decrypting. Please try again.";
+          ? "Decryption failed. The encrypted token appears to be invalid."
+          : "Something went wrong while retrieving the secret. Please try again.";
 
     this.snackBar.open(message, "Dismiss", {
       duration: 6000,

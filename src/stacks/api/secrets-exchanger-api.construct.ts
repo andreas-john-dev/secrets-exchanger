@@ -36,10 +36,9 @@ export class SecretsExchangerApi extends Construct {
       modelName: "SecretCreationModel",
       schema: {
         type: apigw.JsonSchemaType.OBJECT,
-        required: ["secretString"],
+        required: ["encryptedData"],
         properties: {
-          secretString: { type: apigw.JsonSchemaType.STRING, maxLength: 4096 },
-          passphrase: { type: apigw.JsonSchemaType.STRING, maxLength: 256 },
+          encryptedData: { type: apigw.JsonSchemaType.STRING, maxLength: 8192 },
         },
       },
     });
@@ -51,7 +50,6 @@ export class SecretsExchangerApi extends Construct {
         required: ["encryptedInput"],
         properties: {
           encryptedInput: { type: apigw.JsonSchemaType.STRING, maxLength: 8192 },
-          passphrase: { type: apigw.JsonSchemaType.STRING, maxLength: 256 },
         },
       },
     });

@@ -11,47 +11,46 @@ import {
   GetCommand,
 } from "@aws-sdk/lib-dynamodb";
 import { APIGatewayProxyHandler } from "aws-lambda";
-import { EncryptionService } from "./encryption-service";
-import { ResponseInputToEncrypt, StoredSecret, UserSecretInput } from "./types";
+import { DecryptRequest, ResponseInputToEncrypt, StoredSecret } from "./types";
 
 const kmsClient = new KMSClient();
 const dynamodbClient = DynamoDBDocumentClient.from(new DynamoDBClient());
 const logger = new Logger({ serviceName: "Secrets-Exchanger" });
 
-async function decryptResponseInput(
-  encryptedSecret: string,
+async function unwrapSecretIdFromKms(
+  encryptedInput: string,
 ): Promise<ResponseInputToEncrypt> {
   const decryptCommand = new DecryptCommand({
-    CiphertextBlob: Buffer.from(encryptedSecret, "base64"),
+    CiphertextBlob: Buffer.from(encryptedInput, "base64"),
     EncryptionContext: {
       purpose: "secret-storage",
       application: "secrets-exchanger",
     },
   });
 
-  const decryptedData = await kmsClient.send(decryptCommand);
-  const plainText = Buffer.from(decryptedData.Plaintext!).toString();
-  return JSON.parse(plainText) as ResponseInputToEncrypt;
+  const result = await kmsClient.send(decryptCommand);
+  return JSON.parse(Buffer.from(result.Plaintext!).toString()) as ResponseInputToEncrypt;
 }
 
-async function getEncryptedSecret(secretId: string) {
-  const storedSecret = await dynamodbClient.send(
+async function getAndDeleteSecret(secretId: string): Promise<StoredSecret | undefined> {
+  const stored = await dynamodbClient.send(
     new GetCommand({
       TableName: process.env.SECRETS_TABLE_NAME!,
       Key: { secretId },
     }),
   );
 
-  return storedSecret.Item ? (storedSecret.Item as StoredSecret) : undefined;
-}
+  if (!stored.Item) return undefined;
 
-async function deleteEncryptedSecret(secretId: string) {
+  // Burn immediately — even if the caller fails to decrypt, the secret is gone.
   await dynamodbClient.send(
     new DeleteCommand({
       TableName: process.env.SECRETS_TABLE_NAME!,
       Key: { secretId },
     }),
   );
+
+  return stored.Item as StoredSecret;
 }
 
 const RESPONSE_HEADERS = {
@@ -61,55 +60,27 @@ const RESPONSE_HEADERS = {
 };
 
 function createHttpResponse(statusCode: number, body: object) {
-  return {
-    statusCode: statusCode,
-    body: JSON.stringify(body),
-    headers: RESPONSE_HEADERS,
-  };
+  return { statusCode, body: JSON.stringify(body), headers: RESPONSE_HEADERS };
 }
 
 export const handler: APIGatewayProxyHandler = async (event) => {
   logger.info("Event", { event });
-  const body = JSON.parse(event.body!);
-  const encryptedInput = body["encryptedInput"]!;
-  const passphrase = body["passphrase"];
+  const { encryptedInput } = JSON.parse(event.body!) as DecryptRequest;
 
   try {
-    const decryptedInput: ResponseInputToEncrypt =
-      await decryptResponseInput(encryptedInput);
+    const { secretId } = await unwrapSecretIdFromKms(encryptedInput);
 
-    const storedSecret = await getEncryptedSecret(decryptedInput.secretId);
+    const storedSecret = await getAndDeleteSecret(secretId);
     if (!storedSecret) {
-      return createHttpResponse(404, {
-        message: "Secret not found",
-      });
+      return createHttpResponse(404, { message: "Secret not found" });
     }
-    const decryptedSecret = EncryptionService.decrypt(
-      storedSecret.encryptedSecret,
-      decryptedInput.key,
-      decryptedInput.iv,
-    );
-    const decryptedData = JSON.parse(
-      decryptedSecret.decryptedData,
-    ) as UserSecretInput;
-    if (decryptedData.passphrase !== passphrase) {
-      return createHttpResponse(401, {
-        message: "Invalid passphrase",
-      });
-    }
-    logger.info("decryptedData + passphrase", { decryptedData, passphrase });
-    await deleteEncryptedSecret(decryptedInput.secretId);
 
-    return createHttpResponse(200, {
-      secretString: decryptedData.secretString,
-    });
+    // The browser ciphertext is returned as-is; decryption happens client-side.
+    return createHttpResponse(200, { encryptedData: storedSecret.encryptedSecret });
   } catch (error) {
     if (error instanceof InvalidCiphertextException) {
-      return createHttpResponse(400, {
-        message: "Invalid encrypted input",
-      });
-    } else {
-      throw error; // re-throw the error unchanged
+      return createHttpResponse(400, { message: "Invalid encrypted input" });
     }
+    throw error;
   }
 };
