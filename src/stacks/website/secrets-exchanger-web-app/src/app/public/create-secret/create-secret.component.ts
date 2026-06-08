@@ -1,5 +1,5 @@
 import { Clipboard } from "@angular/cdk/clipboard";
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from "@angular/core";
+import { ChangeDetectionStrategy, Component, inject, signal } from "@angular/core";
 import {
   FormControl,
   FormGroup,
@@ -15,6 +15,7 @@ import { MatSnackBar } from "@angular/material/snack-bar";
 import { MatTooltipModule } from "@angular/material/tooltip";
 import { RouterModule } from "@angular/router";
 import { finalize } from "rxjs/operators";
+import { ClientEncryptionService } from "../client-encryption.service";
 import { SecretsService } from "../secrets.service";
 
 const MAX_SECRET_LENGTH = 4096;
@@ -42,6 +43,7 @@ interface CreateSecretForm {
 })
 export class CreateSecretComponent {
   private readonly secretsService = inject(SecretsService);
+  private readonly clientEnc = inject(ClientEncryptionService);
   private readonly clipboard = inject(Clipboard);
   private readonly snackBar = inject(MatSnackBar);
 
@@ -55,37 +57,47 @@ export class CreateSecretComponent {
   });
 
   protected readonly submitting = signal(false);
-  protected readonly encrypted = signal<string | null>(null);
+  protected readonly secretUrl = signal<string | null>(null);
   protected readonly showPassphrase = signal(false);
 
-  protected readonly secretUrl = computed(() => {
-    const value = this.encrypted();
-    if (!value) return "";
-    return `${window.location.origin}/public/read-secret?encryptedInput=${encodeURIComponent(value)}`;
-  });
-
-  protected onSubmit(): void {
+  protected async onSubmit(): Promise<void> {
     if (this.form.invalid || this.submitting()) return;
 
     const { message, passphrase } = this.form.getRawValue();
     this.submitting.set(true);
 
-    this.secretsService
-      .encrypt(message, passphrase || undefined)
-      .pipe(finalize(() => this.submitting.set(false)))
-      .subscribe({
-        next: ({ encryptedResponse }) => {
-          this.encrypted.set(encryptedResponse);
-          this.copyLinkToClipboard();
-        },
-        error: () => {
-          this.snackBar.open(
-            "Something went wrong while encrypting. Please try again.",
-            "Dismiss",
-            { duration: 5000, panelClass: "app-notification-error" },
-          );
-        },
-      });
+    try {
+      const plaintext = JSON.stringify({ secretString: message, passphrase: passphrase || undefined });
+      const { encryptedData, keyB64 } = await this.clientEnc.encryptSecret(plaintext);
+
+      this.secretsService
+        .storeSecret(encryptedData)
+        .pipe(finalize(() => this.submitting.set(false)))
+        .subscribe({
+          next: ({ encryptedResponse }) => {
+            const url =
+              `${window.location.origin}/public/read-secret` +
+              `?encryptedInput=${encodeURIComponent(encryptedResponse)}` +
+              `#key=${encodeURIComponent(keyB64)}`;
+            this.secretUrl.set(url);
+            this.copyLinkToClipboard();
+          },
+          error: () => {
+            this.snackBar.open(
+              "Something went wrong while storing the secret. Please try again.",
+              "Dismiss",
+              { duration: 5000, panelClass: "app-notification-error" },
+            );
+          },
+        });
+    } catch {
+      this.submitting.set(false);
+      this.snackBar.open(
+        "Encryption failed. Your browser may not support the Web Crypto API.",
+        "Dismiss",
+        { duration: 5000, panelClass: "app-notification-error" },
+      );
+    }
   }
 
   protected copyLinkToClipboard(): void {
@@ -99,7 +111,7 @@ export class CreateSecretComponent {
   }
 
   protected reset(): void {
-    this.encrypted.set(null);
+    this.secretUrl.set(null);
     this.form.reset({ message: "", passphrase: "" });
   }
 

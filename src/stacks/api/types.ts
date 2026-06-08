@@ -1,31 +1,21 @@
 
-export interface UserSecretInput {
-  secretString: string;
-  passphrase?: string;
-}
 export interface StoredSecret {
   secretId: string;
   encryptedSecret: string;
   ttl: number;
 }
 
-export interface UserSecretQueryInput {
-  secretId: string;
-  passphrase?: string;
-}
-
-export type EncryptionResult = {
+/** Body accepted by POST /encrypt */
+export type BrowserEncryptRequest = {
   encryptedData: string;
-  iv: string;
-  key: string;
 };
 
-export type DecryptionResult = {
-  decryptedData: string;
+/** Body accepted by POST /decrypt */
+export type DecryptRequest = {
+  encryptedInput: string;
 };
 
+/** KMS-wrapped payload stored in the shareable token */
 export type ResponseInputToEncrypt = {
   secretId: string;
-  key: string;
-  iv: string;
-}
+};
