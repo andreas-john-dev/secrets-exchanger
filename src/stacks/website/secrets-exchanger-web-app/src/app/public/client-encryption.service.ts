@@ -79,6 +79,6 @@ function bufToBase64(buf: Uint8Array): string {
     return btoa(String.fromCharCode(...buf));
 }
 
-function base64ToBuf(b64: string): Uint8Array {
+function base64ToBuf(b64: string): Uint8Array<ArrayBuffer> {
     return Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
 }
