@@ -17,9 +17,16 @@ const project = new awscdk.AwsCdkTypeScriptApp({
       },
     },
   },
-  gitignore: [".DS_Store", "cdk.context.json"],
+  gitignore: [".DS_Store"],
   tsconfig: {
     exclude: ["src/stacks/website/secrets-exchanger-web-app"],
+  },
+  buildWorkflowOptions: {
+    env: {
+      CDK_STAGE: "dev",
+      CDK_DEV_ACCOUNT: "${{ vars.CDK_DEV_ACCOUNT }}",
+      CDK_DEV_REGION: "${{ vars.CDK_DEV_REGION }}",
+    },
   },
   deps: [
     "@types/aws-lambda",

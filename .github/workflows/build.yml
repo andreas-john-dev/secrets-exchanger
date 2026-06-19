@@ -13,6 +13,9 @@ jobs:
       self_mutation_happened: ${{ steps.self_mutation.outputs.self_mutation_happened }}
     env:
       CI: "true"
+      CDK_STAGE: dev
+      CDK_DEV_ACCOUNT: ${{ vars.CDK_DEV_ACCOUNT }}
+      CDK_DEV_REGION: ${{ vars.CDK_DEV_REGION }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
